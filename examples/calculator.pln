@@ -1,0 +1,24 @@
+Note a simple calculator end note.
+Say text Welcome to the calculator. end text
+Ask the user for a number called first number.
+Say text Now type plus, minus, times or divided. end text
+Ask the user for operation.
+Ask the user for a number called second number.
+Set answer to nothing.
+If operation is equal to text plus end text, then
+  Set answer to first number plus second number.
+end if.
+If operation is equal to text minus end text, then
+  Set answer to first number minus second number.
+end if.
+If operation is equal to text times end text, then
+  Set answer to first number times second number.
+end if.
+If operation is equal to text divided end text, then
+  Set answer to first number divided by second number.
+end if.
+If answer is equal to nothing, then
+  Say text I only know plus, minus, times and divided. end text
+otherwise
+  Say text The answer is end text, answer.
+end if.
