@@ -1,0 +1,26 @@
+Note a small to-do list manager end note.
+Make a list called tasks.
+Set running to yes.
+Say text Commands, add a task by typing it, or type show, done, or quit. end text
+While running is equal to yes,
+  Ask the user for command.
+  If command is equal to text show end text, then
+    If the length of tasks is equal to 0, then
+      Say text Nothing to do. end text
+    end if.
+    Count from 1 to the length of tasks using i,
+      Say i, text -- end text, item i of tasks.
+    end loop.
+  otherwise if command is equal to text quit end text, then
+    Set running to no.
+  otherwise if command is equal to text done end text, then
+    Say text Which one is finished? Type its number. end text
+    Ask the user for a number called which one.
+    Remove item which one from tasks.
+    Say text Nice, that is done. end text
+  otherwise
+    Add command to tasks.
+    Say text Added. end text
+  end if.
+end loop.
+Say text Bye! end text.
