@@ -1,0 +1,134 @@
+{
+  "Set variable": {
+    "prefix": "set",
+    "body": [
+      "Set ${1:name} to ${2:0}."
+    ],
+    "description": "Create a variable"
+  },
+  "Change by": {
+    "prefix": "change",
+    "body": [
+      "Change ${1:name} by ${2:1}."
+    ],
+    "description": "Add to an existing variable"
+  },
+  "Say": {
+    "prefix": "say",
+    "body": [
+      "Say ${1:text Hello, world. end text}."
+    ],
+    "description": "Print a line"
+  },
+  "Write": {
+    "prefix": "write",
+    "body": [
+      "Write ${1:text hi end text}."
+    ],
+    "description": "Print without a newline"
+  },
+  "If": {
+    "prefix": "if",
+    "body": [
+      "If ${1:score} is greater than ${2:5}, then",
+      "\t${3:Say text big end text.}",
+      "end if."
+    ],
+    "description": "If statement"
+  },
+  "If else": {
+    "prefix": "ifelse",
+    "body": [
+      "If ${1:score} is greater than ${2:5}, then",
+      "\t${3:Say text big end text.}",
+      "otherwise",
+      "\t${4:Say text small end text.}",
+      "end if."
+    ],
+    "description": "If with otherwise"
+  },
+  "While loop": {
+    "prefix": "while",
+    "body": [
+      "While ${1:count} is less than ${2:10},",
+      "\t${3:Change count by 1.}",
+      "end loop."
+    ],
+    "description": "While loop"
+  },
+  "Repeat loop": {
+    "prefix": "repeat",
+    "body": [
+      "Repeat ${1:10} times,",
+      "\t${2:Say text hello end text.}",
+      "end loop."
+    ],
+    "description": "Repeat N times"
+  },
+  "For each": {
+    "prefix": "foreach",
+    "body": [
+      "For each ${1:item} in ${2:my list},",
+      "\t${3:Say item.}",
+      "end loop."
+    ],
+    "description": "Loop over a list"
+  },
+  "Count loop": {
+    "prefix": "count",
+    "body": [
+      "Count from ${1:1} to ${2:10} using ${3:i},",
+      "\t${4:Say i.}",
+      "end loop."
+    ],
+    "description": "Count from one number to another"
+  },
+  "Make list": {
+    "prefix": "makelist",
+    "body": [
+      "Make a list called ${1:scores} holding ${2:5, 10, 15}."
+    ],
+    "description": "Create a list"
+  },
+  "Function": {
+    "prefix": "function",
+    "body": [
+      "To ${1:add numbers} with ${2:first} and ${3:second}, do",
+      "\tgive back ${4:first} plus ${5:second}.",
+      "end function."
+    ],
+    "description": "Define a function"
+  },
+  "Call function": {
+    "prefix": "result",
+    "body": [
+      "Set ${1:answer} to the result of ${2:add numbers} with ${3:3} and ${4:4}."
+    ],
+    "description": "Call a function for its result"
+  },
+  "Try catch": {
+    "prefix": "try",
+    "body": [
+      "Try,",
+      "\t${1:Say item 1 of scores.}",
+      "if something goes wrong,",
+      "\t${2:Say the problem.}",
+      "end try."
+    ],
+    "description": "Try and catch in words"
+  },
+  "Ask for text": {
+    "prefix": "ask",
+    "body": [
+      "Ask the user for ${1:name}."
+    ],
+    "description": "Ask the user for text"
+  },
+  "Ask for number": {
+    "prefix": "asknumber",
+    "body": [
+      "Ask the user for a number called ${1:age}."
+    ],
+    "description": "Ask the user for a number"
+  }
+}
