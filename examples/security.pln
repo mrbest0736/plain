@@ -1,0 +1,38 @@
+Note security demo: AES-256 encryption, hashing and safe limits end note.
+
+Note encrypt a message with a key, then decrypt it again end note.
+Set message to text meet me at the plain cafe at noon end text.
+Set locked to encrypt message with key text our big secret end text.
+Say text The locked message is unreadable, and is end text, the length of locked, text characters long. end text
+Set unlocked to decrypt locked with key text our big secret end text.
+Say text Unlocked it says end text, unlocked.
+
+Note hashing never needs the key back, and cannot be undone end note.
+Set stamp to the secure hash of message.
+Say text The hash is end text, stamp.
+Say text A hash is always end text, the length of stamp, text characters. end text
+
+Note the same text always makes the same hash end note.
+Set stamp again to the secure hash of message.
+If stamp is equal to stamp again, then
+  Say text The hash matched, so the message is unchanged. end text
+end if.
+
+Note decrypting with the wrong key fails safely end note.
+Try,
+  Set junk to decrypt locked with key text wrong key end text.
+  Say text This line never runs. end text
+if something goes wrong,
+  Say text The wrong key was caught safely. end text
+end try.
+
+Note secure random numbers come from the system's safe randomness end note.
+Set dice to secure random number from 1 to 6.
+If dice is at least 1, then
+  If dice is at most 6, then
+    Say text The secure dice rolled a number from 1 to 6. end text
+  end if.
+end if.
+
+Note limits keep runaway programs under control end note.
+Say text This program stayed inside every safety limit. end text
