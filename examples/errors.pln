@@ -1,0 +1,15 @@
+Note try and catch, in words end note.
+Try,
+  Set x to 5 divided by 0.
+  Say x.
+if something goes wrong,
+  Say text That did not work. The problem was, end text, the problem.
+end try.
+Try,
+  Make a list called short list holding 1, 2, 3.
+  Say item 9 of short list.
+if something goes wrong,
+  Say text Caught again. end text
+  Say text The problem was, end text, the problem.
+end try.
+Say text All done, and the program kept going. end text
