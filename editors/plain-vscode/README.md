@@ -24,23 +24,28 @@ extensions.
 
 ### 1. Install the Plain language itself
 
-The extension needs Python 3.8+ with the `plain` package:
+The extension needs Python 3.8+ with the `plain` package. From the project
+folder (the one containing `pyproject.toml`):
 
 ```bash
-pip install plain-language
+pip install .
 ```
 
-(or from this project folder: `pip install .`)
+or run `install.bat` (Windows) / `install.sh` (macOS, Linux) from the project
+folder, which installs the language and the extension in one step.
 
 ### 2. Install the extension
 
 **From the packaged file (recommended):**
 
-1. Get `plain-language-1.0.0.vsix` from the `dist/` folder of this project.
+1. Build the package from the project folder with `python tools/package_vsix.py`
+   (for the current version this writes `dist/plain-language-1.1.0.vsix`),
+   or download it from the `plain-language-vsix` artifact of a green run under
+   **Actions** on GitHub.
 2. In VS Code or Cursor: Extensions view (`Ctrl+Shift+X`) → `...` menu →
    **Install from VSIX...** → pick the file.
-   Or from a terminal: `code --install-extension plain-language-1.0.0.vsix`
-   (Cursor: `cursor --install-extension plain-language-1.0.0.vsix`).
+   Or from a terminal: `code --install-extension dist/plain-language-1.1.0.vsix`
+   (Cursor: `cursor --install-extension dist/plain-language-1.1.0.vsix`).
 
 **From the folder (development):** copy or symlink `editors/plain-vscode`
 into `~/.vscode/extensions/plain-language` and reload the window.
@@ -63,7 +68,7 @@ The package is a plain zip with a manifest, so no Node toolchain is needed:
 python3 tools/package_vsix.py
 ```
 
-writes `dist/plain-language-1.0.0.vsix`. With `npm`/`vsce` installed you can
+writes `dist/plain-language-1.1.0.vsix`. With `npm`/`vsce` installed you can
 also run `vsce package` inside `editors/plain-vscode` for a marketplace-ready
 build.
 
