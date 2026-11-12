@@ -2,15 +2,18 @@
 
 The design is pure geometry so both files match exactly: a rounded square with
 an indigo-to-violet gradient, a white speech bubble (Plain is written in
-English words), and inside it two rounded bars and a period — an abstract
+English words), and inside it two rounded bars and a period - an abstract
 Plain sentence, ending the way every Plain statement must.
+
+The PNG is rasterised and written with the standard library alone (zlib and
+struct), so the whole project keeps zero dependencies.
 
 Run from the project root:  python3 tools/make_logo.py
 """
 
 import os
-
-from PIL import Image, ImageDraw
+import struct
+import zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -29,38 +32,90 @@ SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="51
 </svg>
 """
 
-INDIGO = (79, 70, 229, 255)
+TOP = (79, 70, 229)
+BOTTOM = (147, 51, 234)
+INDIGO = (79, 70, 229)
+WHITE = (255, 255, 255)
+SAMPLES = ((0.25, 0.25), (0.25, 0.75), (0.75, 0.25), (0.75, 0.75))
+
+
+def _in_rounded_rect(x, y, x0, y0, x1, y1, r):
+    cx = min(max(x, x0 + r), x1 - r)
+    cy = min(max(y, y0 + r), y1 - r)
+    dx = x - cx
+    dy = y - cy
+    return dx * dx + dy * dy <= r * r
+
+
+def _in_ellipse(x, y, cx, cy, a, b):
+    dx = (x - cx) / a
+    dy = (y - cy) / b
+    return dx * dx + dy * dy <= 1.0
+
+
+def _in_circle(x, y, cx, cy, r):
+    dx = x - cx
+    dy = y - cy
+    return dx * dx + dy * dy <= r * r
+
+
+def _in_triangle(x, y, ax, ay, bx, by, cx, cy):
+    d1 = (x - bx) * (ay - by) - (ax - bx) * (y - by)
+    d2 = (x - cx) * (by - cy) - (bx - cx) * (y - cy)
+    d3 = (x - ax) * (cy - ay) - (cx - ax) * (y - ay)
+    return not ((d1 < 0 or d2 < 0 or d3 < 0) and (d1 > 0 or d2 > 0 or d3 > 0))
+
+
+def _sample(u, v):
+    if _in_rounded_rect(u, v, 112.0, 233.0, 242.0, 285.0, 26.0) or \
+       _in_rounded_rect(u, v, 266.0, 233.0, 352.0, 285.0, 26.0) or \
+       _in_circle(u, v, 390.0, 259.0, 27.0):
+        return INDIGO
+    if _in_ellipse(u, v, 256.0, 260.0, 196.0, 168.0) or \
+       _in_triangle(u, v, 337.0, 400.0, 424.0, 452.0, 402.0, 352.0):
+        return WHITE
+    t = v / 511.0
+    return tuple(round(TOP[i] + (BOTTOM[i] - TOP[i]) * t) for i in range(3))
 
 
 def draw_png(path, size=512):
     scale = size / 512.0
-    image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-
-    def box(x0, y0, x1, y1):
-        return [v * scale for v in (x0, y0, x1, y1)]
-
-    gradient = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    top = (79, 70, 229)
-    bottom = (147, 51, 234)
+    rows = []
     for y in range(size):
-        t = y / max(1, size - 1)
-        color = tuple(round(top[i] + (bottom[i] - top[i]) * t) for i in range(3)) + (255,)
+        row = bytearray()
         for x in range(size):
-            gradient.putpixel((x, y), color)
-    mask = Image.new("L", (size, size), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.rounded_rectangle(box(16, 16, 496, 496), radius=round(116 * scale), fill=255)
-    image.paste(gradient, (0, 0), mask)
+            r = g = b = a = 0
+            for ox, oy in SAMPLES:
+                u = (x + ox) / scale
+                v = (y + oy) / scale
+                if not _in_rounded_rect(u, v, 16.0, 16.0, 496.0, 496.0, 116.0):
+                    continue
+                color = _sample(u, v)
+                r += color[0]
+                g += color[1]
+                b += color[2]
+                a += 255
+            count = len(SAMPLES)
+            if a:
+                row += bytes((round(r / count), round(g / count), round(b / count), round(a / count)))
+            else:
+                row += b"\x00\x00\x00\x00"
+        rows.append(bytes(row))
+    _write_png(path, size, rows)
 
-    draw.ellipse(box(60, 92, 452, 428), fill=(255, 255, 255, 255))
-    draw.polygon([pt * scale for pt in (337, 400, 424, 452, 402, 352)], fill=(255, 255, 255, 255))
 
-    draw.rounded_rectangle(box(112, 233, 242, 285), radius=26 * scale, fill=INDIGO)
-    draw.rounded_rectangle(box(266, 233, 352, 285), radius=26 * scale, fill=INDIGO)
-    draw.ellipse(box(363, 232, 417, 286), fill=INDIGO)
+def _png_chunk(kind, data):
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
 
-    image.save(path, "PNG")
+
+def _write_png(path, width, rows):
+    header = struct.pack(">IIBBBBB", width, len(rows), 8, 6, 0, 0, 0)
+    raw = b"".join(b"\x00" + row for row in rows)
+    with open(path, "wb") as handle:
+        handle.write(b"\x89PNG\r\n\x1a\n")
+        handle.write(_png_chunk(b"IHDR", header))
+        handle.write(_png_chunk(b"IDAT", zlib.compress(raw, 9)))
+        handle.write(_png_chunk(b"IEND", b""))
 
 
 def main():
