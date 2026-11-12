@@ -45,12 +45,22 @@ plain run file.pln     Run a Plain program (compiled runner, see Performance).
 plain run --tree file.pln
                        Run with the reference tree-walking interpreter.
 plain check file.pln   Check the syntax without running it.
+plain color file.pln   Print the program colour coded for the terminal.
 plain repl             Interactive prompt (multi-line aware; type help inside it).
 plain lsp              Run the language server for editors (VS Code, Cursor).
 plain version          Print the version.
 ```
 
 `python -m plain` works the same way as `plain`.
+
+Every run is wrapped in safety limits, so a runaway program cannot eat your
+machine. Tune or switch them off:
+
+```
+plain run file.pln --max-loop-rounds 1000000 --max-call-depth 500
+plain run file.pln --max-output-chars 100000 --max-read-bytes 1000000
+plain run file.pln --no-limits
+```
 
 ## The language in one minute
 
@@ -121,6 +131,7 @@ All examples in `examples/` run and are exercised by the test suite:
 | `functions.pln` | Parameters, give back, closures |
 | `errors.pln` | try/catch, the problem |
 | `helpers.pln`, `import_demo.pln` | Use the file imports |
+| `security.pln` | AES-256 encrypt/decrypt, secure hash, secure random, wrong-key catch |
 
 Run any of them:
 
@@ -137,15 +148,15 @@ highlighting, 16 snippets, a `.pln` file icon, `Plain: Run File` /
 plain-English errors, as squiggles while you type) via a built-in language
 server (`plain lsp`, no external dependencies).
 
-An installable package is included: **`dist/plain-language-1.0.0.vsix`**.
+An installable package is included: **`dist/plain-language-1.1.0.vsix`**.
 
 1. Install the language: `pip install .` (from this folder)
 2. Install the extension:
 
 ```bash
-code --install-extension dist/plain-language-1.0.0.vsix
+code --install-extension dist/plain-language-1.1.0.vsix
 # Cursor:
-cursor --install-extension dist/plain-language-1.0.0.vsix
+cursor --install-extension dist/plain-language-1.1.0.vsix
 ```
 
 or in the editor: Extensions view → `...` → **Install from VSIX...**
@@ -154,9 +165,49 @@ Rebuild the package any time with `python3 tools/package_vsix.py` (pure
 Python zip, no Node toolchain needed). See
 [editors/plain-vscode/README.md](editors/plain-vscode/README.md).
 
+## Security
+
+Plain 1.1 takes Rust's lesson seriously: security is guarantees the language
+enforces, not a library you can forget to call. Two layers:
+
+**Built-in cryptography** (pure Python, no dependencies, in `plain/security.py`):
+
+- `encrypt <message> with key <passphrase>.` — AES-256-CBC. The passphrase is
+  stretched with PBKDF2-HMAC-SHA256 (100,000 rounds, 16-byte random salt), and
+  the output is a base64 blob carrying its own salt and IV, so the same message
+  never encrypts to the same text twice.
+- `decrypt <blob> with key <passphrase>.` — reverses it. A wrong key or corrupted
+  blob is a friendly catchable error, never a crash or silent garbage.
+- `the secure hash of <text>` — SHA-256 fingerprint (always 64 characters).
+- `secure random number from 1 to 6` — randomness from the operating system's
+  cryptographically secure source (`secrets`), unlike the plain `random number`
+  which is for games and simulations.
+
+**Rust-style runtime guarantees** (on by default in both engines):
+
+- Every list access is bounds-checked; out-of-range is a friendly error.
+- Runaway loops are stopped after 10,000,000 total loop rounds.
+- Runaway recursion is stopped at 200 calls deep.
+- A program cannot print more than 10,000,000 characters.
+- A single `wait` is capped at 60 seconds; a file read at 10,000,000 characters.
+- File access is confined: `read file` / `write file` / `Use the file` can only
+  open files inside the folder the program lives in — `../` escapes and absolute
+  paths outside it are rejected.
+
+All limits are adjustable with the `--max-*` flags and can be lifted with
+`--no-limits`.
+
+An honest note on the comparison with Rust: Rust's security is *memory safety*
+enforced at compile time — it has no built-in encryption at all. Plain is
+interpreted on CPython, so it cannot make the same compile-time guarantees;
+what it does instead is make the safe path the only path at runtime (bounds
+checks, limits, confinement are not optional) and ship real cryptography as
+part of the language. The AES-256 implementation is pure Python, so it is
+slower than a C-backed library — the trade for zero dependencies.
+
 ## Performance
 
-Plain 1.0 ships two engines with identical, test-verified behavior:
+Plain ships two engines with identical, test-verified behavior:
 
 - **Reference interpreter** (`plain/interpreter.py`) — a readable
 tree-walking evaluator.
@@ -168,11 +219,11 @@ Measured with `python3 tools/bench.py` (CPython 3.12):
 
 | Benchmark | Reference | Compiled | Speedup |
 | --- | --- | --- | --- |
-| fib(22) recursion | 0.210s | 0.068s | 3.1x |
-| count loop 200k | 0.121s | 0.052s | 2.3x |
-| math ops 100k | 0.260s | 0.076s | 3.4x |
-| list ops 30k | 0.033s | 0.020s | 1.7x |
-| text ops 50k | 0.061s | 0.038s | 1.6x |
+| fib(22) recursion | 0.211s | 0.069s | 3.0x |
+| count loop 200k | 0.138s | 0.063s | 2.2x |
+| math ops 100k | 0.280s | 0.085s | 3.3x |
+| list ops 30k | 0.037s | 0.022s | 1.7x |
+| text ops 50k | 0.069s | 0.044s | 1.6x |
 
 An honest note: Plain is a teaching language hosted on CPython, so the same
 `fib(22)` written directly in Python 3 runs in about 0.0014s — roughly 50x
@@ -192,15 +243,17 @@ plain/
   interpreter.py  Reference tree-walking evaluator: scopes, loops, functions, errors.
   vm.py           The compiled fast runner (default engine), verified against the reference.
   builtins.py     Value helpers and built-in operations (random, time, files...).
+  security.py     AES-256, PBKDF2, SHA-256, secure random, and the safety Limits.
+  highlight.py    ANSI colour coder for the terminal (plain color).
   errors.py       Friendly error types that quote the offending line.
   lsp.py          Language server for editors (JSON-RPC over stdio).
-  cli.py          run / check / repl / lsp / version.
+  cli.py          run / check / color / repl / lsp / version.
 editors/plain-vscode/  The VS Code / Cursor extension (grammar, snippets, LSP client).
-dist/             The packaged extension: plain-language-1.0.0.vsix
+dist/             The packaged extension: plain-language-1.1.0.vsix
 assets/           The Plain logo (logo.svg, icon.png).
 tools/            make_logo.py, package_vsix.py, bench.py.
 tests/            pytest suite (lexer, parser, interpreter, VM parity, errors, examples, CLI, LSP).
-examples/         15 runnable example programs.
+examples/         16 runnable example programs.
 LANGUAGE_GUIDE.md The complete language reference with the formal EBNF grammar.
 ```
 
