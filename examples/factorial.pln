@@ -1,0 +1,9 @@
+Note the factorial of a number, using recursion end note.
+To factorial with n, do
+  If n is at most 1, then
+    give back 1.
+  end if.
+  give back n times the result of factorial with n minus 1.
+end function.
+Ask the user for a number called n.
+Say text The factorial of end text, n, text is end text, the result of factorial with n.
