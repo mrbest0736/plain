@@ -1,0 +1,15 @@
+Note FizzBuzz, the classic counting game end note.
+Count from 1 to 15 using i,
+  Set shout to text end text.
+  If i remainder of 3 is equal to 0, then
+    Set shout to text Fizz end text.
+  end if.
+  If i remainder of 5 is equal to 0, then
+    Set shout to shout joined with text Buzz end text.
+  end if.
+  If shout is equal to text end text, then
+    Say i.
+  otherwise
+    Say shout.
+  end if.
+end loop.
