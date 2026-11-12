@@ -1,0 +1,114 @@
+{
+  "name": "Plain",
+  "scopeName": "source.plain",
+  "fileTypes": [
+    "pln"
+  ],
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#text-literal"
+    },
+    {
+      "include": "#function-name"
+    },
+    {
+      "include": "#constant-language"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#keyword-control"
+    },
+    {
+      "include": "#keyword-statement"
+    },
+    {
+      "include": "#keyword-end"
+    },
+    {
+      "include": "#operator-words"
+    },
+    {
+      "include": "#the-phrases"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.block.plain",
+          "begin": "(?i:\\bnote\\b)",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.plain"
+            }
+          },
+          "end": "(?i:\\bend\\s+note\\b|(?=\\z))",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.plain"
+            }
+          }
+        }
+      ]
+    },
+    "text-literal": {
+      "name": "string.quoted.other.plain",
+      "begin": "(?i:\\btext\\b)(?!\\s*version\\s+of\\b)",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.plain"
+        }
+      },
+      "end": "(?i:\\bend\\s+text\\b|(?=\\z))",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.plain"
+        }
+      }
+    },
+    "function-name": {
+      "match": "(?i:\\bto\\b)\\s+([a-z]+(?:\\s+[a-z]+)*?)(?=\\s+(?:with|do)\\b|\\s*[,.]?\\s*$)",
+      "captures": {
+        "0": {
+          "name": "keyword.control.plain"
+        },
+        "1": {
+          "name": "entity.name.function.plain"
+        }
+      }
+    },
+    "constant-language": {
+      "match": "(?i:\\b(?:yes|no|nothing)\\b)",
+      "name": "constant.language.plain"
+    },
+    "number": {
+      "match": "(?i:\\b\\d+(?:\\s+point\\s+\\d+)?\\b|\\bnegative\\b(?=\\s+\\d))",
+      "name": "constant.numeric.plain"
+    },
+    "keyword-control": {
+      "match": "(?i:\\b(?:if|then|otherwise|while|repeat|for|each|in|from|using|by|times|loop|function|do|give back|stop the loop|skip to the next one|use the file|wait|seconds|and|or|not)\\b)",
+      "name": "keyword.control.plain"
+    },
+    "keyword-statement": {
+      "match": "(?i:\\b(?:set|change|say|write|ask|make|add|remove|sort|reverse|run|try|use|item|holding|called|split|read|write file|group|end group|negative)\\b)",
+      "name": "keyword.other.plain"
+    },
+    "keyword-end": {
+      "match": "(?i:\\bend\\s+(?:if|loop|function|try|text|note|group)\\b)",
+      "name": "keyword.control.end.plain"
+    },
+    "operator-words": {
+      "match": "(?i:\\b(?:plus|minus|divided by|remainder of|to the power of|rounded|joined with|contains|is equal to|is not equal to|is greater than|is less than|is at least|is at most|uppercase of|lowercase of)\\b)",
+      "name": "keyword.operator.word.plain"
+    },
+    "the-phrases": {
+      "match": "(?i:\\bthe\\s+(?:square root of|absolute value of|larger of|smaller of|length of|first item of|last item of|result of|text version of|number version of|current time|problem)\\b)",
+      "name": "support.function.phrase.plain"
+    }
+  }
+}
