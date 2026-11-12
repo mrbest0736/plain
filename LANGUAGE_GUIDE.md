@@ -56,7 +56,7 @@ division is not exact.
 
 ## 4. Keyword table
 
-These 62 words are **reserved**. They cannot appear inside a name. That is what
+These 65 words are **reserved**. They cannot appear inside a name. That is what
 makes multi-word names unambiguous: the parser always knows where a name ends.
 
 **Statements:** set, change, say, write, ask, make, remove, sort, reverse, run,
@@ -71,6 +71,8 @@ using, function, do, loop, times, note
 
 **Operators:** and, or, plus, minus, divided, remainder, is, contains, joined,
 rounded, split, read
+
+**Security:** encrypt, decrypt, secure
 
 **Special:** problem
 
@@ -207,6 +209,46 @@ Say the text version of 42.
 Say the number version of text 3 point 5 end text.
 ```
 
+### Security
+
+```
+Set locked to encrypt message with key text our secret end text.
+Set message to decrypt locked with key text our secret end text.
+Set stamp to the secure hash of message.
+Set dice to secure random number from 1 to 6.
+```
+
+`encrypt` uses AES-256-CBC. The key you write is a passphrase: it is stretched
+with PBKDF2-HMAC-SHA256 (100,000 rounds) and a fresh random salt, and the
+result is a base64 blob that carries its own salt and IV, so the same message
+never encrypts to the same text twice. Only the passphrase needs to be kept.
+
+`decrypt` reverses this. A wrong key, or text that was never encrypted, is a
+friendly runtime error you can catch with Try, not a crash:
+
+```
+Try,
+  Set message to decrypt locked with key text guess end text.
+if something goes wrong,
+  Say text That was not the key. end text
+end try.
+```
+
+`the secure hash of` gives the SHA-256 fingerprint of a text (always 64
+characters). It cannot be undone; use it to check whether text has changed.
+`secure random number from A to B` draws from the operating system's
+cryptographically secure randomness. Use it for anything secret; the plain
+`random number from A to B` is for games and simulations.
+
+Plain also guards the running program itself. List accesses are bounds-checked,
+loops stop after 10,000,000 rounds, recursion stops at 200 calls deep, output
+stops at 10,000,000 characters, waits are capped at 60 seconds, file reads at
+10,000,000 characters, and `read file`, `write file` and `Use the file` can
+only open files inside the folder the program lives in. All limits can be
+raised or lifted with the `plain run` flags `--max-loop-rounds`,
+`--max-call-depth`, `--max-output-chars`, `--max-wait-seconds`,
+`--max-read-bytes` and `--no-limits`.
+
 ## 6. Expressions and precedence
 
 From loosest to tightest. Use `group ... end group` to force a different order.
@@ -221,9 +263,9 @@ From loosest to tightest. Use `group ... end group` to force a different order.
 | 6 | `plus`, `minus` | numbers only; use `joined with` for text |
 | 7 | `times`, `divided by`, `remainder of` | left-associative |
 | 8 | `to the power of` | right-associative |
-| 9 | `negative`, `the square root of`, `the absolute value of`, `uppercase of`, `lowercase of` | prefix |
+| 9 | `negative`, `the square root of`, `the absolute value of`, `the secure hash of`, `uppercase of`, `lowercase of` | prefix |
 | 10 | `rounded` | postfix |
-| 11 | literals, names, `group`, `item N of`, `the ...` phrases, calls, built-ins | primary |
+| 11 | literals, names, `group`, `item N of`, `the ...` phrases, `encrypt ... with key ...`, `decrypt ... with key ...`, `secure random number from ... to ...`, calls, built-ins | primary |
 
 ## 7. Formal grammar (EBNF)
 
@@ -332,10 +374,15 @@ primary        = NUMBER [ "point" NUMBER ]      (* decimal *)
                | the_phrase
                | "a" "list" "holding" expression { "," expression }
                | "random" "number" "from" additive "to" additive
+               | "secure" "random" "number" "from" additive "to" additive
+               | encrypt_expr | decrypt_expr
                | "split" additive "by" additive
                | "read" "file" postfix
                | write_file_expr
                | name ;
+
+encrypt_expr   = "encrypt" additive "with" "key" additive ;
+decrypt_expr   = "decrypt" additive "with" "key" additive ;
 
 item_of        = "item" additive "of" postfix   (* see rule C below *)
                | name ;                          (* a variable called item *)
@@ -350,6 +397,7 @@ the_phrase     = "the" "length" "of" postfix
                | "the" "result" "of" name [ "with" call_arg { "and" call_arg } ]
                | "the" "number" "version" "of" postfix
                | "the" "text" "version" "of" postfix
+               | "the" "secure" "hash" "of" postfix
                | "the" "current" "time"
                | "the" "problem" ;
 
@@ -433,6 +481,15 @@ conversion, not a text literal that happens to start with `text`.
 **M. Case does not matter, names are maximal.** Keywords and names are matched
 case-insensitively, and a name is the longest run of non-reserved words, so
 `Set total score to 1.` makes one variable called `total score`.
+
+**N. Security phrases and the word `with`.** `encrypt` and `decrypt` take their
+message and key at the additive level, so `plus` and `minus` bind inside each
+part and only one `with key` clause is allowed:
+`encrypt name joined with stamp with key text k end text` encrypts the whole
+joined text. `the secure hash of` is a prefix phrase at the unary level, so it
+applies to the postfix value right after it, and it works on text only.
+`secure random number from` is matched before the plain `random number from`,
+so the two phrases never collide.
 
 ## 9. Error messages
 
