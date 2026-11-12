@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plain-language"
+version = "1.0.0"
+description = "Plain: a programming language written almost entirely in English words."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Plain" }]
+keywords = ["programming-language", "interpreter", "beginner", "plain-english"]
+classifiers = [
+    "Intended Audience :: Education",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Education",
+]
+
+[project.scripts]
+plain = "plain.cli:main"
+
+[tool.setuptools]
+packages = ["plain"]
