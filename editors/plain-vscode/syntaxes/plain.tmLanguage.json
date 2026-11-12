@@ -34,6 +34,9 @@
     },
     {
       "include": "#the-phrases"
+    },
+    {
+      "include": "#secure-random"
     }
   ],
   "repository": {
@@ -95,7 +98,7 @@
       "name": "keyword.control.plain"
     },
     "keyword-statement": {
-      "match": "(?i:\\b(?:set|change|say|write|ask|make|add|remove|sort|reverse|run|try|use|item|holding|called|split|read|write file|group|end group|negative)\\b)",
+      "match": "(?i:\\b(?:set|change|say|write|ask|make|add|remove|sort|reverse|run|try|use|item|holding|called|split|read|encrypt|decrypt|secure|write file|group|end group|negative)\\b)",
       "name": "keyword.other.plain"
     },
     "keyword-end": {
@@ -107,7 +110,11 @@
       "name": "keyword.operator.word.plain"
     },
     "the-phrases": {
-      "match": "(?i:\\bthe\\s+(?:square root of|absolute value of|larger of|smaller of|length of|first item of|last item of|result of|text version of|number version of|current time|problem)\\b)",
+      "match": "(?i:\\bthe\\s+(?:square root of|absolute value of|larger of|smaller of|length of|first item of|last item of|result of|text version of|number version of|secure hash of|current time|problem)\\b)",
+      "name": "support.function.phrase.plain"
+    },
+    "secure-random": {
+      "match": "(?i:\\bsecure\\s+random\\s+number\\s+from\\b)",
       "name": "support.function.phrase.plain"
     }
   }
