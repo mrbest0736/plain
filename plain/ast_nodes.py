@@ -354,5 +354,28 @@ class WriteFile(Node):
 
 
 @dataclass
+class SecureRandom(Node):
+    start: Any
+    stop: Any
+
+
+@dataclass
+class SecureHash(Node):
+    value: Any
+
+
+@dataclass
+class Encrypt(Node):
+    value: Any
+    key: Any
+
+
+@dataclass
+class Decrypt(Node):
+    value: Any
+    key: Any
+
+
+@dataclass
 class TheProblem(Node):
     pass
