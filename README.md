@@ -22,21 +22,44 @@ otherwise
 end if.
 ```
 
-## Quickstart
+## Download and install
 
-You need Python 3.8 or newer. No other dependencies.
+You need Python 3.8 or newer. Nothing else — Plain has zero dependencies.
+
+**Step 1. Get the code.** Every command below must run *inside the project
+folder*, the one that contains `pyproject.toml`:
 
 ```bash
-cd plain-language
-python -m plain run examples/hello.pln
+git clone https://github.com/mrbest0736/plain.git
+cd plain
 ```
 
-Optionally install the `plain` command:
+No git? On the GitHub page press the green **Code** button, choose
+**Download ZIP**, unzip it, and open the unzipped folder.
+
+**Step 2. Install the language:**
 
 ```bash
 pip install .
+```
+
+On Windows you may see "Defaulting to user installation" — that is fine, it
+installs for your user only. If the `plain` command is not found afterwards,
+use `python -m plain` everywhere instead (it works identically).
+
+**Step 3. Try it:**
+
+```bash
 plain run examples/hello.pln
 ```
+
+Two errors people hit, and what they mean:
+
+- `Neither 'setup.py' nor 'pyproject.toml' found` — you are not inside the
+  project folder. `cd` into the folder that contains `pyproject.toml` first.
+- `ENOENT ... plain-language-1.1.0.vsix` — the extension package is not in
+  the folder you ran the command from. Build it first (next section), or give
+  the full path to the file.
 
 ## CLI
 
@@ -148,10 +171,29 @@ highlighting, 16 snippets, a `.pln` file icon, `Plain: Run File` /
 plain-English errors, as squiggles while you type) via a built-in language
 server (`plain lsp`, no external dependencies).
 
-An installable package is included: **`dist/plain-language-1.1.0.vsix`**.
+The easiest way: from the project folder, run the installer for your system —
 
-1. Install the language: `pip install .` (from this folder)
-2. Install the extension:
+```bat
+.\install.bat      Windows
+./install.sh       macOS and Linux
+```
+
+It installs the language, builds the extension package, and installs it into
+VS Code and Cursor when it finds them.
+
+Or by hand:
+
+1. Build the package (pure Python zip, no Node toolchain needed):
+
+```bash
+python tools/package_vsix.py
+```
+
+This writes `dist/plain-language-1.1.0.vsix`. A ready-made copy is also
+attached to every green run under **Actions** as the `plain-language-vsix`
+artifact (sign in to GitHub to download artifacts).
+
+2. Install it:
 
 ```bash
 code --install-extension dist/plain-language-1.1.0.vsix
@@ -161,9 +203,7 @@ cursor --install-extension dist/plain-language-1.1.0.vsix
 
 or in the editor: Extensions view → `...` → **Install from VSIX...**
 
-Rebuild the package any time with `python3 tools/package_vsix.py` (pure
-Python zip, no Node toolchain needed). See
-[editors/plain-vscode/README.md](editors/plain-vscode/README.md).
+See [editors/plain-vscode/README.md](editors/plain-vscode/README.md).
 
 ## Security
 
@@ -249,9 +289,10 @@ plain/
   lsp.py          Language server for editors (JSON-RPC over stdio).
   cli.py          run / check / color / repl / lsp / version.
 editors/plain-vscode/  The VS Code / Cursor extension (grammar, snippets, LSP client).
-dist/             The packaged extension: plain-language-1.1.0.vsix
+dist/             The packaged extension, built by tools/package_vsix.py.
 assets/           The Plain logo (logo.svg, icon.png).
 tools/            make_logo.py, package_vsix.py, bench.py.
+install.bat, install.sh   One-command installers (Windows; macOS/Linux).
 tests/            pytest suite (lexer, parser, interpreter, VM parity, errors, examples, CLI, LSP).
 examples/         16 runnable example programs.
 LANGUAGE_GUIDE.md The complete language reference with the formal EBNF grammar.
