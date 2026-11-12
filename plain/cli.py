@@ -2,6 +2,7 @@
 
     plain run file.pln     run a program
     plain check file.pln   check the syntax without running it
+    plain color file.pln   print the program colour coded for the terminal
     plain repl             start an interactive session
     plain version          show the version
 """
@@ -15,6 +16,7 @@ from plain.lexer import lex
 from plain.parser import Parser
 from plain.interpreter import Interpreter
 from plain.vm import Runtime
+from plain.security import Limits
 
 REPL_HELP = """Plain is a programming language written in English words.
 
@@ -53,13 +55,36 @@ def load_program(path):
     return program, source
 
 
+def limits_from_args(args):
+    """Build a Limits from the --max-* and --no-limits flags."""
+    if getattr(args, "no_limits", False):
+        return Limits.unlimited()
+    return Limits(
+        max_loop_rounds=getattr(args, "max_loop_rounds", None),
+        max_call_depth=getattr(args, "max_call_depth", None),
+        max_output_chars=getattr(args, "max_output_chars", None),
+        max_wait_seconds=getattr(args, "max_wait_seconds", None),
+        max_read_bytes=getattr(args, "max_read_bytes", None),
+    )
+
+
 def cmd_run(args):
     program, source = load_program(args.file)
+    limits = limits_from_args(args)
     if getattr(args, "tree", False):
-        engine = Interpreter(source=source, filename=args.file)
+        engine = Interpreter(source=source, filename=args.file, limits=limits)
     else:
-        engine = Runtime(source=source, filename=args.file)
+        engine = Runtime(source=source, filename=args.file, limits=limits)
     engine.run(program)
+    return 0
+
+
+def cmd_color(args):
+    from plain.highlight import highlight_source
+    program, source = load_program(args.file)
+    sys.stdout.write(highlight_source(source))
+    if not source.endswith("\n"):
+        sys.stdout.write("\n")
     return 0
 
 
@@ -158,8 +183,25 @@ def build_arg_parser():
     run_p.add_argument("file", help="the .pln file to run")
     run_p.add_argument("--tree", action="store_true",
                        help="use the reference tree-walking interpreter instead of the compiled runner")
+    for flag, dest, default, help_text in (
+        ("--max-loop-rounds", "max_loop_rounds", Limits.max_loop_rounds,
+         "total loop rounds allowed before the program is stopped"),
+        ("--max-call-depth", "max_call_depth", Limits.max_call_depth,
+         "how deep function calls may nest"),
+        ("--max-output-chars", "max_output_chars", Limits.max_output_chars,
+         "characters the program may print"),
+        ("--max-wait-seconds", "max_wait_seconds", Limits.max_wait_seconds,
+         "longest single wait allowed"),
+        ("--max-read-bytes", "max_read_bytes", Limits.max_read_bytes,
+         "largest file the program may read"),
+    ):
+        run_p.add_argument(flag, dest=dest, type=int, default=default, help=help_text)
+    run_p.add_argument("--no-limits", action="store_true",
+                       help="turn off all safety limits (not recommended)")
     check_p = sub.add_parser("check", help="check the syntax of a .pln program")
     check_p.add_argument("file", help="the .pln file to check")
+    color_p = sub.add_parser("color", help="print a .pln program colour coded")
+    color_p.add_argument("file", help="the .pln file to colour code")
     sub.add_parser("repl", help="start an interactive Plain session")
     sub.add_parser("lsp", help="run the language server for editors (VS Code, Cursor)")
     sub.add_parser("version", help="show the version of Plain")
@@ -178,6 +220,12 @@ def main(argv=None):
     if args.command == "check":
         try:
             return cmd_check(args)
+        except PlainError as exc:
+            sys.stdout.write(str(exc) + "\n")
+            return 1
+    if args.command == "color":
+        try:
+            return cmd_color(args)
         except PlainError as exc:
             sys.stdout.write(str(exc) + "\n")
             return 1
