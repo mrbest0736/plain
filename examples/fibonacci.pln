@@ -1,0 +1,10 @@
+Note the first ten fibonacci numbers end note.
+To fibonacci with n, do
+  If n is at most 2, then
+    give back 1.
+  end if.
+  give back the result of fibonacci with n minus 1 plus the result of fibonacci with n minus 2.
+end function.
+Count from 1 to 10 using i,
+  Say text fibonacci number end text, i, text is end text, the result of fibonacci with i.
+end loop.
