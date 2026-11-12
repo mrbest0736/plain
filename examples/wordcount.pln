@@ -1,0 +1,13 @@
+Note count the words and letters in a sentence end note.
+Say text Type a sentence. end text
+Ask the user for sentence.
+Note the text literal on the next line holds a single space end note.
+Set pieces to split sentence by text   end text.
+Set words to the length of pieces.
+Set letters to the length of sentence.
+Say text Your sentence has end text, words, text words and end text, letters, text letters, counting spaces. end text
+If words is greater than 0, then
+  Say text The first word is end text, the first item of pieces.
+  Say text The last word is end text, the last item of pieces.
+end if.
+Say text In capitals it reads, end text, uppercase of sentence.
