@@ -2,7 +2,7 @@
   "name": "plain-language",
   "displayName": "Plain Language",
   "description": "Plain (.pln) — a programming language written almost entirely in English words. Syntax highlighting, snippets, live friendly diagnostics and one-command running for VS Code and Cursor.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "plain-lang",
   "license": "MIT",
   "icon": "icon.png",
