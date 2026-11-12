@@ -6,10 +6,12 @@ version of, split ... by ..., read file and write file.
 """
 
 import math
+import os
 import random as _random
 import time as _time
 
 from plain.errors import PlainRuntimeError
+from plain.security import format_limit, secure_random_int
 
 
 def is_number(value):
@@ -112,14 +114,37 @@ def builtin_current_time():
     return _time.time()
 
 
-def builtin_wait(seconds, line):
+def builtin_wait(seconds, line, max_seconds=None):
     if not is_number(seconds) or seconds < 0:
         raise PlainRuntimeError(
             "wait needs a number of seconds that is zero or more on line %s, but I got %s." % (
                 line, display_value(seconds)),
             "Write it like: wait 2 seconds.",
             line=line)
+    if max_seconds is not None and seconds > max_seconds:
+        raise PlainRuntimeError(
+            "I cannot wait %s seconds on line %s, because the longest wait allowed is %s seconds." % (
+                display_value(seconds), line, format_limit(max_seconds)),
+            "Wait for a shorter time. Long waits are usually a mistake.",
+            line=line)
     _time.sleep(seconds)
+
+
+def builtin_secure_random(start, stop, line):
+    if not is_number(start) or not is_number(stop):
+        raise PlainRuntimeError(
+            "secure random number from needs two numbers on line %s, but I got %s and %s." % (
+                line, describe_type(start), describe_type(stop)),
+            "Write it like: secure random number from 1 to 10.",
+            line=line)
+    a = int(round(start))
+    b = int(round(stop))
+    if a > b:
+        raise PlainRuntimeError(
+            "I cannot pick a secure random number from %s to %s on line %s, because the first number is larger." % (a, b, line),
+            "Write the smaller number first: secure random number from 1 to 10.",
+            line=line)
+    return secure_random_int(a, b)
 
 
 def builtin_split(value, separator, line):
@@ -141,12 +166,23 @@ def builtin_split(value, separator, line):
     return value.split(separator)
 
 
-def builtin_read_file(path, line):
+def builtin_read_file(path, line, max_bytes=None):
     if not isinstance(path, str):
         raise PlainRuntimeError(
             "read file needs the file name as text on line %s, but I got %s." % (line, describe_type(path)),
             "Write it like: read file text notes.txt end text",
             line=line)
+    if max_bytes is not None:
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            size = 0
+        if size > max_bytes:
+            raise PlainRuntimeError(
+                "I cannot read the file %s on line %s, because it is bigger than %s characters." % (
+                    path, line, format_limit(max_bytes)),
+                "Read smaller files, or raise the limit with --max-read-bytes.",
+                line=line)
     try:
         with open(path, "r", encoding="utf-8") as handle:
             return handle.read()
