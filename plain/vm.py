@@ -15,6 +15,10 @@ from plain.builtins import (
     is_number, display_value, describe_type, to_text, to_number,
     builtin_random, builtin_current_time, builtin_wait, builtin_split,
     builtin_read_file, builtin_write_file, builtin_sqrt, builtin_rounded,
+    builtin_secure_random,
+)
+from plain.security import (
+    Limits, decrypt_text, encrypt_text, format_limit, secure_hash_text,
 )
 from plain.interpreter import (
     Scope, ReturnSignal, StopLoopSignal, SkipOneSignal, plain_equal,
@@ -35,7 +39,7 @@ class CompiledFunction:
 class Runtime:
     """Holds the state of one running Plain program."""
 
-    def __init__(self, source="", filename=None, output=None, input_fn=None):
+    def __init__(self, source="", filename=None, output=None, input_fn=None, limits=None):
         self.output = output if output is not None else (lambda s: sys.stdout.write(s))
         self.input_fn = input_fn if input_fn is not None else input
         self.source = source
@@ -43,13 +47,44 @@ class Runtime:
         self.functions = {}
         self.loaded_files = set()
         self.filename = os.path.abspath(filename) if filename else None
+        self.limits = limits if limits is not None else Limits()
+        self.loop_rounds = 0
+        self.depth = 0
 
     def fail(self, line, problem, fix):
         raise PlainRuntimeError(problem, fix, line=line, source=self.source)
 
     def run(self, program):
+        self._guard_output()
         body = compile_block(program.statements, self)
         body(self, self.globals)
+
+    def _guard_output(self):
+        cap = self.limits.max_output_chars
+        if cap is None:
+            return
+        raw = self.output
+        if not callable(raw):
+            raw = raw.append
+        written = [0]
+
+        def guarded(text):
+            written[0] += len(text)
+            if written[0] > cap:
+                raise PlainRuntimeError(
+                    "I stopped the program because it has said more than %s characters." % format_limit(cap),
+                    "Look for a loop that prints more than it should, or raise the limit with --max-output-chars.")
+            raw(text)
+        self.output = guarded
+
+    def _check_rounds(self, line):
+        self.loop_rounds += 1
+        cap = self.limits.max_loop_rounds
+        if cap is not None and self.loop_rounds > cap:
+            self.fail(line,
+                      "I stopped this loop on line %s because the program has run more than %s loop rounds in total." % (
+                          line, format_limit(cap)),
+                      "This usually means the loop would never end. Make sure something inside the loop changes the condition, or raise the limit with --max-loop-rounds.")
 
     def call_function(self, name, args, line):
         fn = self.functions.get(name)
@@ -67,7 +102,18 @@ class Runtime:
                           name, expected))
         call_scope = Scope(self.globals)
         call_scope.vars.update(zip(fn.params, args))
-        result = fn.body(self, call_scope)
+        self.depth += 1
+        cap = self.limits.max_call_depth
+        if cap is not None and self.depth > cap:
+            self.depth -= 1
+            self.fail(line,
+                      "I stopped this call on line %s because functions are nested more than %s deep." % (
+                          line, format_limit(cap)),
+                      "This usually means a function keeps calling itself forever. Make sure the recursion has a stopping condition, or raise the limit with --max-call-depth.")
+        try:
+            result = fn.body(self, call_scope)
+        finally:
+            self.depth -= 1
         if result is not None:
             return result[0]
         return None
@@ -77,6 +123,7 @@ class Runtime:
         functions_get = self.functions.get
         globals_scope = self.globals
         call_self = self
+        max_depth = self.limits.max_call_depth
 
         def invoke(scope):
             fn = functions_get(name)
@@ -93,19 +140,40 @@ class Runtime:
                                    len(args), line),
                                "Call it with the right inputs, for example: the result of %s with %s." % (
                                    name, expected))
+            call_self.depth += 1
+            if max_depth is not None and call_self.depth > max_depth:
+                call_self.depth -= 1
+                call_self.fail(line,
+                               "I stopped this call on line %s because functions are nested more than %s deep." % (
+                                   line, format_limit(max_depth)),
+                               "This usually means a function keeps calling itself forever. Make sure the recursion has a stopping condition, or raise the limit with --max-call-depth.")
             call_scope = Scope(globals_scope)
             call_scope.vars.update(zip(fn.params, args))
-            result = fn.body(call_self, call_scope)
+            try:
+                result = fn.body(call_self, call_scope)
+            finally:
+                call_self.depth -= 1
             if result is not None:
                 return result[0]
             return None
         return invoke
 
-    def resolve_path(self, path):
-        if os.path.isabs(path):
-            return path
+    def resolve_path(self, path, line):
+        if not isinstance(path, str):
+            self.fail(line,
+                      "read file and write file need the file name as text on line %s, but I got %s." % (
+                          line, describe_type(path)),
+                      "Write it like: read file text notes.txt end text")
         base = os.path.dirname(self.filename) if self.filename else os.getcwd()
-        return os.path.join(base, path)
+        base_real = os.path.realpath(base)
+        full = path if os.path.isabs(path) else os.path.join(base, path)
+        real = os.path.realpath(full)
+        if real != base_real and not real.startswith(base_real + os.sep):
+            self.fail(line,
+                      "I can only open files that live in the same folder as the program on line %s, but %s points outside it." % (
+                          line, path),
+                      "Move the file next to the program and use its name, like read file text notes.txt end text.")
+        return full
 
     def read_input(self, line):
         try:
@@ -433,6 +501,66 @@ def compile_expr(node, rt):
             return builtin_random(start_fn(scope), stop_fn(scope), line)
         return random_number
 
+    if kind is ast.SecureRandom:
+        start_fn = compile_expr(node.start, rt)
+        stop_fn = compile_expr(node.stop, rt)
+        line = node.line
+
+        def secure_random(scope):
+            return builtin_secure_random(start_fn(scope), stop_fn(scope), line)
+        return secure_random
+
+    if kind is ast.SecureHash:
+        value_fn = compile_expr(node.value, rt)
+        line = node.line
+
+        def secure_hash(scope):
+            value = value_fn(scope)
+            if not isinstance(value, str):
+                rt.fail(line,
+                        "the secure hash of works on text on line %s, but I got %s." % (
+                            line, describe_type(value)),
+                        "Use the text version of to turn a value into text first.")
+            return secure_hash_text(value)
+        return secure_hash
+
+    if kind is ast.Encrypt:
+        value_fn = compile_expr(node.value, rt)
+        key_fn = compile_expr(node.key, rt)
+        line = node.line
+
+        def encrypt(scope):
+            value = value_fn(scope)
+            key = key_fn(scope)
+            if not isinstance(value, str) or not isinstance(key, str):
+                rt.fail(line,
+                        "encrypt works on text and a key made of text on line %s, but I got %s and %s." % (
+                            line, describe_type(value), describe_type(key)),
+                        "Write it like: encrypt message with key text our secret end text.")
+            return encrypt_text(value, key)
+        return encrypt
+
+    if kind is ast.Decrypt:
+        value_fn = compile_expr(node.value, rt)
+        key_fn = compile_expr(node.key, rt)
+        line = node.line
+
+        def decrypt(scope):
+            value = value_fn(scope)
+            key = key_fn(scope)
+            if not isinstance(value, str) or not isinstance(key, str):
+                rt.fail(line,
+                        "decrypt works on text and a key made of text on line %s, but I got %s and %s." % (
+                            line, describe_type(value), describe_type(key)),
+                        "Write it like: decrypt locked with key text our secret end text.")
+            try:
+                return decrypt_text(value, key)
+            except ValueError:
+                rt.fail(line,
+                        "I cannot decrypt this message on line %s. The key may be wrong, or the text is not a Plain-encrypted message." % line,
+                        "Decrypt it with the same key it was encrypted with.")
+        return decrypt
+
     if kind is ast.SplitText:
         value_fn = compile_expr(node.value, rt)
         sep_fn = compile_expr(node.separator, rt)
@@ -447,7 +575,8 @@ def compile_expr(node, rt):
         line = node.line
 
         def read_file(scope):
-            return builtin_read_file(rt.resolve_path(path_fn(scope)), line)
+            return builtin_read_file(rt.resolve_path(path_fn(scope), line), line,
+                                     max_bytes=rt.limits.max_read_bytes)
         return read_file
 
     if kind is ast.WriteFile:
@@ -456,7 +585,7 @@ def compile_expr(node, rt):
         line = node.line
 
         def write_file(scope):
-            return builtin_write_file(rt.resolve_path(path_fn(scope)), content_fn(scope), line)
+            return builtin_write_file(rt.resolve_path(path_fn(scope), line), content_fn(scope), line)
         return write_file
 
     if kind is ast.TheProblem:
@@ -727,6 +856,7 @@ def compile_stmt(node, rt):
                     break
                 if value is not True:
                     _truthy(rt_arg, value, cond_line)
+                rt_arg._check_rounds(node.line)
                 try:
                     result = body(rt_arg, scope)
                 except SkipOneSignal:
@@ -745,6 +875,7 @@ def compile_stmt(node, rt):
         def repeat(rt_arg, scope):
             times = _whole_number(rt_arg, count_fn(scope), line, "repeat")
             for _ in range(times):
+                rt_arg._check_rounds(line)
                 try:
                     result = body(rt_arg, scope)
                 except SkipOneSignal:
@@ -770,6 +901,7 @@ def compile_stmt(node, rt):
                         "Loop over a list, for example: For each thing in shopping list, ... end loop.")
             values = list(iterable)
             for value in values:
+                rt_arg._check_rounds(line)
                 scope.vars[name] = value
                 try:
                     result = body(rt_arg, scope)
@@ -805,6 +937,7 @@ def compile_stmt(node, rt):
             else:
                 values = range(start, stop - 1, step)
             for value in values:
+                rt_arg._check_rounds(line)
                 scope.vars[name] = value
                 try:
                     result = body(rt_arg, scope)
@@ -983,14 +1116,7 @@ def compile_stmt(node, rt):
         line = node.line
 
         def use_file(rt_arg, scope):
-            if os.path.isabs(filename):
-                path = filename
-            else:
-                base = os.path.dirname(rt_arg.filename) if rt_arg.filename else os.getcwd()
-                path = os.path.join(base, filename)
-                if not os.path.exists(path):
-                    path = os.path.abspath(filename)
-            resolved = os.path.abspath(path)
+            resolved = os.path.realpath(rt_arg.resolve_path(filename, line))
             if resolved in rt_arg.loaded_files:
                 return
             if not os.path.exists(resolved):
@@ -1020,7 +1146,7 @@ def compile_stmt(node, rt):
         line = node.line
 
         def wait(rt_arg, scope):
-            builtin_wait(seconds_fn(scope), line)
+            builtin_wait(seconds_fn(scope), line, max_seconds=rt_arg.limits.max_wait_seconds)
         return wait
 
     if kind is ast.GiveBack:
