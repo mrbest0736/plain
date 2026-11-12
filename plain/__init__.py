@@ -1,6 +1,6 @@
 """Plain -- a programming language written in English words."""
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 from plain.errors import PlainError, PlainSyntaxError, PlainRuntimeError, PlainIncomplete
 from plain.lexer import lex, Token
