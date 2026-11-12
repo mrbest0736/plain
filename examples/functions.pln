@@ -1,0 +1,24 @@
+Note functions, helpers and closures over globals end note.
+To add numbers with first and second, do
+  give back first plus second.
+end function.
+Set answer to the result of add numbers with 3 and 4.
+Say text Three plus four is end text, answer.
+Set greeting to text Hello there. end text
+To greet with name, do
+  Say greeting, name, text Welcome to Plain. end text
+end function.
+Run greet with text Ada end text.
+Set counter to 0.
+To bump counter up, do
+  Change counter by 1.
+end function.
+Run bump counter up.
+Run bump counter up.
+Run bump counter up.
+Say text The counter is now end text, counter.
+Set price to 19 point 99 rounded.
+Say text The price rounds to end text, price.
+Set big to the larger of 3 times 4 and 11.
+Set small to the smaller of 100 and the square root of 144.
+Say text Larger is end text, big, text and smaller is end text, small.
