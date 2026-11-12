@@ -1,0 +1,30 @@
+name: build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install pillow pytest
+          pip install .
+      - name: Generate logo and package the editor extension
+        run: |
+          python3 tools/make_logo.py
+          cp assets/icon.png editors/plain-vscode/icon.png
+          python3 tools/package_vsix.py
+      - name: Run the test suite
+        run: python3 -m pytest tests/ -q
+      - name: Upload the installable extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: plain-language-vsix
+          path: dist/*.vsix
