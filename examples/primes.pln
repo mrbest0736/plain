@@ -1,0 +1,19 @@
+Note find every prime number up to 50 end note.
+To check prime with n, do
+  If n is less than 2, then
+    give back no.
+  end if.
+  Set d to 2.
+  While d times d is at most n,
+    If n remainder of d is equal to 0, then
+      give back no.
+    end if.
+    Change d by 1.
+  end loop.
+  give back yes.
+end function.
+Count from 2 to 50 using n,
+  If the result of check prime with n, then
+    Say n, text is prime. end text
+  end if.
+end loop.
