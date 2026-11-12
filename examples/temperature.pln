@@ -1,0 +1,16 @@
+Note convert temperatures with the word group end note.
+Say text Type c for Celsius to Fahrenheit, or f for Fahrenheit to Celsius. end text
+Ask the user for choice.
+If choice is equal to text c end text, then
+  Ask the user for a number called celsius.
+  Set fahrenheit to celsius times 9 divided by 5 plus 32.
+  Say text That is end text, fahrenheit, text degrees Fahrenheit. end text
+end if.
+If choice is equal to text f end text, then
+  Ask the user for a number called fahrenheit.
+  Set celsius to group fahrenheit minus 32 end group times 5 divided by 9.
+  Say text That is end text, celsius, text degrees Celsius. end text
+end if.
+If choice is not equal to text c end text and choice is not equal to text f end text, then
+  Say text I only know the letters c and f. end text
+end if.
