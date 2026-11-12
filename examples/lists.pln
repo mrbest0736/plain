@@ -1,0 +1,19 @@
+Note playing with lists end note.
+Make a list called scores holding 5, 10, 15.
+Add 20 to scores.
+Say text The scores are end text, scores.
+Say text The first score is end text, the first item of scores.
+Say text The last score is end text, the last item of scores.
+Set item 2 of scores to 99.
+Say text After changing item 2, it is end text, item 2 of scores.
+Sort scores.
+Say text Sorted, they are end text, scores.
+Reverse scores.
+Say text Backwards, they are end text, scores.
+Remove the last item from scores.
+Say text After removing the last one, end text, the length of scores, text remain. end text
+Make a list called grid holding a list holding 1, 2, a list holding 3, 4.
+Say text Item 2 of item 1 of the grid is end text, item 2 of item 1 of grid.
+If scores contains 99, then
+  Say text The list has a 99 in it. end text
+end if.
