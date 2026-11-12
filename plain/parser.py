@@ -19,6 +19,7 @@ from plain.ast_nodes import (
     Rounded, LargerOf, SmallerOf, ItemOf, LengthOf, FirstItemOf,
     LastItemOf, UppercaseOf, LowercaseOf, ToText, ToNumber, Call,
     RandomNumber, CurrentTime, SplitText, ReadFile, WriteFile, TheProblem,
+    SecureRandom, SecureHash, Encrypt, Decrypt,
 )
 
 STATEMENT_STARTERS = (
@@ -849,6 +850,29 @@ class Parser:
             node = RandomNumber(start, stop)
             node.line = tok.line
             return node
+        if self.at("secure", "random", "number", "from"):
+            self.advance()
+            self.advance()
+            self.advance()
+            self.advance()
+            start = self.parse_additive()
+            self.expect("to")
+            stop = self.parse_additive()
+            node = SecureRandom(start, stop)
+            node.line = tok.line
+            return node
+        if word == "encrypt" or word == "decrypt":
+            self.advance()
+            value = self.parse_additive()
+            self.expect("with")
+            self.expect("key")
+            key = self.parse_additive()
+            if word == "encrypt":
+                node = Encrypt(value, key)
+            else:
+                node = Decrypt(value, key)
+            node.line = tok.line
+            return node
         if word == "split":
             self.advance()
             value = self.parse_additive()
@@ -958,6 +982,14 @@ class Parser:
                 while self.accept("and"):
                     args.append(self.parse_comparison(True))
             node = Call(name, args)
+            node.line = tok.line
+            return node
+        if self.at("the", "secure", "hash", "of"):
+            self.advance()
+            self.advance()
+            self.advance()
+            self.advance()
+            node = SecureHash(self.parse_postfix())
             node.line = tok.line
             return node
         if self.at("the", "number", "version", "of"):
