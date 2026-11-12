@@ -17,7 +17,7 @@ class TestVersion:
     def test_version(self, capsys):
         code, out = run_cli(capsys, ["version"])
         assert code == 0
-        assert "Plain version 1 point 0" in out
+        assert "Plain version 1 point 1" in out
 
 
 class TestCheck:
@@ -70,7 +70,7 @@ class TestRepl:
     def test_repl_banner_and_bye(self, capsys, monkeypatch):
         code, out = self.repl(capsys, monkeypatch, ["bye"])
         assert code == 0
-        assert "Plain version 1 point 0" in out
+        assert "Plain version 1 point 1" in out
         assert "Bye." in out
 
     def test_repl_help(self, capsys, monkeypatch):
