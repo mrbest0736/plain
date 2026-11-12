@@ -1,0 +1,18 @@
+{
+  "comments": {
+    "blockComment": [
+      "Note ",
+      " end note"
+    ]
+  },
+  "brackets": [],
+  "autoClosingPairs": [],
+  "surroundingPairs": [],
+  "wordPattern": "[a-zA-Z]+",
+  "folding": {
+    "markers": {
+      "start": "^\\s*(?i:(?:if|while|repeat|for|count|to|try)\\b)",
+      "end": "^\\s*(?i:end\\s+(?:if|loop|function|try)\\b)"
+    }
+  }
+}
