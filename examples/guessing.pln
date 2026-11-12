@@ -1,0 +1,17 @@
+Note this is a number guessing game end note.
+Set secret to random number from 1 to 20.
+Set tries to 0.
+Say text I am thinking of a number from 1 to 20. end text
+Set found to no.
+While found is equal to no,
+  Ask the user for a number called guess.
+  Change tries by 1.
+  If guess is equal to secret, then
+    Say text You got it in end text, tries, text tries. end text
+    Set found to yes.
+  otherwise if guess is less than secret, then
+    Say text Too low. end text
+  otherwise
+    Say text Too high. end text
+  end if.
+end loop.
