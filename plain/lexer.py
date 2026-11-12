@@ -61,6 +61,8 @@ RESERVED = {
     # operators
     "and", "or", "plus", "minus", "divided", "remainder", "is",
     "contains", "joined", "rounded", "split", "read",
+    # security
+    "encrypt", "decrypt", "secure",
     # special
     "problem",
 }
