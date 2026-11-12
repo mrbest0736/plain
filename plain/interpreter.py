@@ -16,6 +16,10 @@ from plain.builtins import (
     is_number, display_value, describe_type, to_text, to_number,
     builtin_random, builtin_current_time, builtin_wait, builtin_split,
     builtin_read_file, builtin_write_file, builtin_sqrt, builtin_rounded,
+    builtin_secure_random,
+)
+from plain.security import (
+    Limits, decrypt_text, encrypt_text, format_limit, secure_hash_text,
 )
 from plain.ast_nodes import (
     Program, SetVar, SetItem, ChangeBy, If, While, Repeat, ForEach,
@@ -27,6 +31,7 @@ from plain.ast_nodes import (
     Rounded, LargerOf, SmallerOf, ItemOf, LengthOf, FirstItemOf,
     LastItemOf, UppercaseOf, LowercaseOf, ToText, ToNumber, Call,
     RandomNumber, CurrentTime, SplitText, ReadFile, WriteFile, TheProblem,
+    SecureRandom, SecureHash, Encrypt, Decrypt,
 )
 
 
@@ -44,6 +49,8 @@ class SkipOneSignal(Exception):
 
 
 class Scope:
+    __slots__ = ("vars", "parent")
+
     def __init__(self, parent=None):
         self.vars = {}
         self.parent = parent
@@ -80,7 +87,7 @@ class Function:
 
 
 class Interpreter:
-    def __init__(self, source="", filename=None, output=None, input_fn=None):
+    def __init__(self, source="", filename=None, output=None, input_fn=None, limits=None):
         self.output = output if output is not None else (lambda s: sys.stdout.write(s))
         self.input_fn = input_fn if input_fn is not None else input
         self.source = source
@@ -88,11 +95,42 @@ class Interpreter:
         self.functions = {}
         self.loaded_files = set()
         self.filename = os.path.abspath(filename) if filename else None
+        self.limits = limits if limits is not None else Limits()
+        self.loop_rounds = 0
+        self.depth = 0
 
     # --- entry points -------------------------------------------------------
 
     def run(self, program):
+        self._guard_output()
         self.exec_block(program.statements, self.globals)
+
+    def _guard_output(self):
+        cap = self.limits.max_output_chars
+        if cap is None:
+            return
+        raw = self.output
+        if not callable(raw):
+            raw = raw.append
+        written = [0]
+
+        def guarded(text):
+            written[0] += len(text)
+            if written[0] > cap:
+                raise PlainRuntimeError(
+                    "I stopped the program because it has said more than %s characters." % format_limit(cap),
+                    "Look for a loop that prints more than it should, or raise the limit with --max-output-chars.")
+            raw(text)
+        self.output = guarded
+
+    def _check_rounds(self, line):
+        self.loop_rounds += 1
+        cap = self.limits.max_loop_rounds
+        if cap is not None and self.loop_rounds > cap:
+            self.fail(line,
+                      "I stopped this loop on line %s because the program has run more than %s loop rounds in total." % (
+                          line, format_limit(cap)),
+                      "This usually means the loop would never end. Make sure something inside the loop changes the condition, or raise the limit with --max-loop-rounds.")
 
     def fail(self, line, problem, fix):
         raise PlainRuntimeError(problem, fix, line=line, source=self.source)
@@ -148,6 +186,7 @@ class Interpreter:
 
     def _run_while(self, stmt, scope):
         while self.truthy(self.eval(stmt.condition, scope), stmt.condition.line):
+            self._check_rounds(stmt.line)
             try:
                 self.exec_block(stmt.body, scope)
             except SkipOneSignal:
@@ -159,6 +198,7 @@ class Interpreter:
         count = self.eval(stmt.count, scope)
         times = self._whole_number(count, stmt.line, "repeat")
         for _ in range(times):
+            self._check_rounds(stmt.line)
             try:
                 self.exec_block(stmt.body, scope)
             except SkipOneSignal:
@@ -174,6 +214,7 @@ class Interpreter:
                           describe_type(iterable), stmt.line),
                       "Loop over a list, for example: For each thing in shopping list, ... end loop.")
         for value in list(iterable):
+            self._check_rounds(stmt.line)
             scope.define(stmt.name, value)
             try:
                 self.exec_block(stmt.body, scope)
@@ -197,6 +238,7 @@ class Interpreter:
                       "Use by 1, by 2, by negative 1, or leave the step out.")
         values = list(range(start_n, stop_n + 1, step)) if step > 0 else list(range(start_n, stop_n - 1, step))
         for value in values:
+            self._check_rounds(stmt.line)
             scope.define(stmt.name, value)
             try:
                 self.exec_block(stmt.body, scope)
@@ -291,14 +333,7 @@ class Interpreter:
 
     def _run_use_file(self, stmt, scope):
         filename = stmt.filename
-        if os.path.isabs(filename):
-            path = filename
-        else:
-            base = os.path.dirname(self.filename) if self.filename else os.getcwd()
-            path = os.path.join(base, filename)
-            if not os.path.exists(path):
-                path = os.path.abspath(filename)
-        resolved = os.path.abspath(path)
+        resolved = os.path.realpath(self._resolve_path(filename, stmt.line))
         if resolved in self.loaded_files:
             return
         if not os.path.exists(resolved):
@@ -323,7 +358,7 @@ class Interpreter:
             self.source = saved_source
 
     def _run_wait(self, stmt, scope):
-        builtin_wait(self.eval(stmt.seconds, scope), stmt.line)
+        builtin_wait(self.eval(stmt.seconds, scope), stmt.line, max_seconds=self.limits.max_wait_seconds)
 
     def _run_give_back(self, stmt, scope):
         raise ReturnSignal(self.eval(stmt.value, scope))
@@ -358,10 +393,20 @@ class Interpreter:
         call_scope = Scope(self.globals)
         for param, value in zip(fn.params, args):
             call_scope.define(param, value)
+        self.depth += 1
+        cap = self.limits.max_call_depth
+        if cap is not None and self.depth > cap:
+            self.depth -= 1
+            self.fail(line,
+                      "I stopped this call on line %s because functions are nested more than %s deep." % (
+                          line, format_limit(cap)),
+                      "This usually means a function keeps calling itself forever. Make sure the recursion has a stopping condition, or raise the limit with --max-call-depth.")
         try:
             self.exec_block(fn.body, call_scope)
         except ReturnSignal as signal:
             return signal.value
+        finally:
+            self.depth -= 1
         return None
 
     # --- expressions ------------------------------------------------------------
@@ -611,17 +656,66 @@ class Interpreter:
     def _eval_split(self, node, scope):
         return builtin_split(self.eval(node.value, scope), self.eval(node.separator, scope), node.line)
 
-    def _resolve_path(self, path):
-        if os.path.isabs(path):
-            return path
+    def _eval_secure_random(self, node, scope):
+        return builtin_secure_random(self.eval(node.start, scope), self.eval(node.stop, scope), node.line)
+
+    def _eval_secure_hash(self, node, scope):
+        value = self.eval(node.value, scope)
+        if not isinstance(value, str):
+            self.fail(node.line,
+                      "the secure hash of works on text on line %s, but I got %s." % (
+                          node.line, describe_type(value)),
+                      "Use the text version of to turn a value into text first.")
+        return secure_hash_text(value)
+
+    def _eval_encrypt(self, node, scope):
+        value = self.eval(node.value, scope)
+        key = self.eval(node.key, scope)
+        if not isinstance(value, str) or not isinstance(key, str):
+            self.fail(node.line,
+                      "encrypt works on text and a key made of text on line %s, but I got %s and %s." % (
+                          node.line, describe_type(value), describe_type(key)),
+                      "Write it like: encrypt message with key text our secret end text.")
+        return encrypt_text(value, key)
+
+    def _eval_decrypt(self, node, scope):
+        value = self.eval(node.value, scope)
+        key = self.eval(node.key, scope)
+        if not isinstance(value, str) or not isinstance(key, str):
+            self.fail(node.line,
+                      "decrypt works on text and a key made of text on line %s, but I got %s and %s." % (
+                          node.line, describe_type(value), describe_type(key)),
+                      "Write it like: decrypt locked with key text our secret end text.")
+        try:
+            return decrypt_text(value, key)
+        except ValueError:
+            self.fail(node.line,
+                      "I cannot decrypt this message on line %s. The key may be wrong, or the text is not a Plain-encrypted message." % node.line,
+                      "Decrypt it with the same key it was encrypted with.")
+
+    def _resolve_path(self, path, line):
+        if not isinstance(path, str):
+            self.fail(line,
+                      "read file and write file need the file name as text on line %s, but I got %s." % (
+                          line, describe_type(path)),
+                      "Write it like: read file text notes.txt end text")
         base = os.path.dirname(self.filename) if self.filename else os.getcwd()
-        return os.path.join(base, path)
+        base_real = os.path.realpath(base)
+        full = path if os.path.isabs(path) else os.path.join(base, path)
+        real = os.path.realpath(full)
+        if real != base_real and not real.startswith(base_real + os.sep):
+            self.fail(line,
+                      "I can only open files that live in the same folder as the program on line %s, but %s points outside it." % (
+                          line, path),
+                      "Move the file next to the program and use its name, like read file text notes.txt end text.")
+        return full
 
     def _eval_read_file(self, node, scope):
-        return builtin_read_file(self._resolve_path(self.eval(node.path, scope)), node.line)
+        return builtin_read_file(self._resolve_path(self.eval(node.path, scope), node.line), node.line,
+                                 max_bytes=self.limits.max_read_bytes)
 
     def _eval_write_file(self, node, scope):
-        return builtin_write_file(self._resolve_path(self.eval(node.path, scope)), self.eval(node.content, scope), node.line)
+        return builtin_write_file(self._resolve_path(self.eval(node.path, scope), node.line), self.eval(node.content, scope), node.line)
 
     def _eval_problem(self, node, scope):
         scope_walk = scope
@@ -769,6 +863,10 @@ Interpreter._eval_handlers = {
     ReadFile: Interpreter._eval_read_file,
     WriteFile: Interpreter._eval_write_file,
     TheProblem: Interpreter._eval_problem,
+    SecureRandom: Interpreter._eval_secure_random,
+    SecureHash: Interpreter._eval_secure_hash,
+    Encrypt: Interpreter._eval_encrypt,
+    Decrypt: Interpreter._eval_decrypt,
 }
 
 
